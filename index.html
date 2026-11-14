@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" id="meta-theme-color" content="#ffffff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <title>Учебный календарь</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {}
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+</head>
+
+<body
+    class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 antialiased min-h-screen transition-colors">
+
+    <div
+        class="max-w-md md:max-w-4xl lg:max-w-5xl mx-auto bg-white dark:bg-slate-950 min-h-screen flex flex-col shadow-xl relative pb-20 md:pb-8 transition-all">
+
+        <!-- КОМПАКТНАЯ ШАПКА -->
+        <header
+            class="bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-20 transition-colors">
+            <div class="flex flex-col md:flex-row md:items-center md:gap-3">
+                <div class="flex items-center gap-2 mb-0.5 md:mb-0">
+                    <span id="compact-header-date"
+                        class="text-lg md:text-xl font-extrabold text-slate-800 dark:text-white leading-tight">--</span>
+                    <button onclick="selectToday()" id="todayBtn"
+                        class="text-[10px] uppercase tracking-wider bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 px-2 py-1 rounded-md font-bold hover:bg-blue-200 dark:hover:bg-blue-800 active:scale-95 transition">
+                        Сегодня
+                    </button>
+                </div>
+                <span id="compact-header-week"
+                    class="text-xs md:text-sm font-bold text-blue-600 dark:text-blue-400 mt-0.5 md:mt-0">--</span>
+
+                <div class="flex items-center gap-1.5 mt-1">
+                    <!-- Появляется автоматически, только когда создано 2 и более профилей -->
+                    <div id="header-profile-wrapper" class="hidden mt-1">
+                        <select id="profile-selector" onchange="switchProfile(this.value)"
+                            class="text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[180px] truncate cursor-pointer">
+                        </select>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="flex items-center gap-1 md:gap-2">
+                <button onclick="openManageModal()" title="Редактировать расписание"
+                    class="p-2 rounded-full text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                </button>
+
+                <button onclick="openSettingsModal()" title="Настройки"
+                    class="p-2 rounded-full text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Вкладки -->
+        <div
+            class="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm font-medium text-slate-500 dark:text-slate-400 transition-colors md:px-6">
+            <button id="tab-calendar-btn" onclick="switchTab('calendar')"
+                class="tab-btn active flex-1 md:flex-none md:px-8 py-3 text-center transition">Календарь</button>
+            <button id="tab-table-btn" onclick="switchTab('table')"
+                class="tab-btn flex-1 md:flex-none md:px-8 py-3 text-center transition">Сетка расписания</button>
+        </div>
+
+        <!-- ОСНОВНОЙ КОНТЕНТ -->
+        <main class="flex-1 px-4 md:px-6 py-4 md:py-6 overflow-y-auto">
+
+            <!-- Режим: Календарь (Split-View на планшетах и ПК) -->
+            <section id="view-calendar" class="space-y-4 md:space-y-0 md:grid md:grid-cols-12 md:gap-6 md:items-start">
+
+                <!-- ЛЕВАЯ КОЛОНКА: Переключатель месяцев + Сетка календаря -->
+                <div class="md:col-span-7 space-y-4">
+                    <!-- Месяц и переключатели -->
+                    <div
+                        class="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 transition-colors">
+                        <button onclick="changeMonth(-1)"
+                            class="p-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm active:scale-95 transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                    d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <div class="text-center">
+                            <div id="calendar-month-year"
+                                class="font-bold text-slate-800 dark:text-slate-100 text-base md:text-lg capitalize">
+                            </div>
+                        </div>
+                        <button onclick="changeMonth(1)"
+                            class="p-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm active:scale-95 transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                    d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Сетка календаря -->
+                    <div
+                        class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-2 md:p-3 shadow-sm transition-colors">
+                        <div class="calendar-grid rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800"
+                            id="calendar-grid">
+                            <!-- JS сетка -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ПРАВАЯ КОЛОНКА: Карточка выбранного дня с расписанием -->
+                <div
+                    class="md:col-span-5 md:sticky md:top-20 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 md:p-5 shadow-sm transition-colors">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                        <div>
+                            <h3 id="selected-day-title"
+                                class="font-bold text-slate-800 dark:text-slate-100 text-base md:text-lg">
+                                Выбранный день</h3>
+                            <p id="selected-day-subtitle"
+                                class="text-xs text-blue-600 dark:text-blue-400 font-medium mt-0.5">--</p>
+                        </div>
+                    </div>
+
+                    <div id="day-lessons-list"
+                        class="mt-3 space-y-2.5 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto md:pr-1">
+                        <!-- JS вывод -->
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- Режим: Вся сетка недели -->
+            <section id="view-table" class="hidden space-y-4">
+                <div
+                    class="flex items-center justify-between bg-slate-50 dark:bg-slate-900 p-3 md:px-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 transition-colors">
+                    <div>
+                        <span class="text-xs text-slate-400 dark:text-slate-500 font-medium">Фильтр по неделе:</span>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <span id="table-filter-label"
+                                class="font-bold text-slate-800 dark:text-slate-200 text-sm"></span>
+                        </div>
+                    </div>
+                    <select id="table-week-select" onchange="filterTableByWeek(this.value)"
+                        class="text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="all">Показать всё</option>
+                        <option value="current">Текущая неделя</option>
+                    </select>
+                </div>
+
+                <div id="full-schedule-container"
+                    class="space-y-4 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4">
+                    <!-- Заполняется днями недели -->
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Модалка добавления / редактирования пары -->
+        <div id="lesson-modal"
+            class="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div
+                class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl max-h-[90vh] overflow-y-auto transition-colors">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 id="modal-lesson-title" class="text-lg font-bold text-slate-800 dark:text-white">Добавить
+                        занятие</h3>
+                    <button onclick="closeLessonModal()"
+                        class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <form id="lesson-form" onsubmit="saveLesson(event)" class="space-y-3.5 text-sm">
+                    <input type="hidden" id="form-lesson-id">
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">День
+                            недели</label>
+                        <select id="form-day" required
+                            class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-800 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                            <option value="1">Понедельник</option>
+                            <option value="2">Вторник</option>
+                            <option value="3">Среда</option>
+                            <option value="4">Четверг</option>
+                            <option value="5">Пятница</option>
+                            <option value="6">Суббота</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label
+                                class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Начало</label>
+                            <input type="text" id="form-time-start" placeholder="08:30" required
+                                class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono">
+                        </div>
+                        <div>
+                            <label
+                                class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Конец</label>
+                            <input type="text" id="form-time-end" placeholder="10:00" required
+                                class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Название
+                            дисциплины</label>
+                        <input type="text" id="form-subject" placeholder="Название дисциплины" required
+                            class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-800 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Тип
+                                занятия</label>
+                            <input type="text" id="form-type" placeholder="Лекция / Практика"
+                                class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label
+                                class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Аудитория</label>
+                            <input type="text" id="form-room" placeholder="ауд. 101"
+                                class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label
+                            class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Преподаватель</label>
+                        <input type="text" id="form-teacher" placeholder="Фамилия И.О."
+                            class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+
+                    <div
+                        class="bg-blue-50/70 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-100 dark:border-blue-900/50">
+                        <label class="block text-xs font-bold text-blue-900 dark:text-blue-300 mb-1">Правило учебных
+                            недель</label>
+                        <input type="text" id="form-weeks" placeholder="все" required
+                            class="w-full bg-white dark:bg-slate-900 border border-blue-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        <p
+                            class="text-[11px] text-blue-800/80 dark:text-blue-300/80 mt-1.5 leading-relaxed flex flex-wrap items-center gap-1">
+                            <span>Примеры:</span>
+                            <code
+                                class="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200 font-mono font-bold">все</code>
+                            <code
+                                class="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200 font-mono font-bold">чётные</code>
+                            <code
+                                class="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200 font-mono font-bold">нечётные</code>
+                            <code
+                                class="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200 font-mono font-bold">2, 4, 6</code>
+                            <code
+                                class="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200 font-mono font-bold">2-3, 10-13</code>
+                        </p>
+                    </div>
+
+                    <div class="flex gap-2 pt-2">
+                        <button type="button" id="btn-delete-lesson" onclick="deleteCurrentLesson()"
+                            class="hidden px-4 py-2.5 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-xl font-semibold transition">
+                            Удалить
+                        </button>
+                        <button type="submit"
+                            class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-md shadow-blue-500/20 transition">
+                            Сохранить
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Модалка: Список занятий -->
+        <div id="manage-modal"
+            class="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-40 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div
+                class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl max-h-[85vh] flex flex-col transition-colors">
+                <!-- Шапка модалки: только заголовок и крестик -->
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-base font-bold text-slate-800 dark:text-white">Редактор расписания</h3>
+                    <button onclick="closeManageModal()"
+                        class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- <div
+                    class="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2.5 mb-3">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Профиль расписания</span>
+                        <button onclick="createNewProfilePrompt()"
+                            class="px-2.5 py-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-bold transition flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                    d="M12 4v16m8-8H4" />
+                            </svg>
+                            Новая группа
+                        </button>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="settings-profile-name" onchange="renameCurrentProfile(this.value)"
+                            class="flex-1 min-w-0 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white text-xs font-semibold rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button onclick="deleteCurrentProfile()" id="btn-delete-profile" title="Удалить этот профиль"
+                            class="shrink-0 px-2.5 py-2 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 rounded-lg transition flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+                </div> -->
+                <div
+                    class="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2.5 mb-3">
+                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400">Профиль
+                        расписания</label>
+                    <input type="text" id="settings-profile-name" onchange="renameCurrentProfile(this.value)"
+                        class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white text-xs font-semibold rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <div class="flex items-center justify-between gap-2 pt-0.5">
+                        <button onclick="createNewProfilePrompt()"
+                            class="px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-bold transition flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                    d="M12 4v16m8-8H4" />
+                            </svg>
+                            Новая группа
+                        </button>
+                        <button onclick="deleteCurrentProfile()" id="btn-delete-profile"
+                            class="px-3 py-1.5 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 rounded-lg text-xs font-semibold transition flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Удалить группу
+                        </button>
+                    </div>
+                </div>
+                <!-- Управление текущим профилем: отдельной строкой на всю ширину -->
+                <div class="flex gap-2 mb-3">
+                    <button onclick="openAddLessonModal()"
+                        class="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Добавить пару
+                    </button>
+                    <button onclick="clearAllSchedule()"
+                        class="py-2 px-3 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 text-rose-600 dark:text-rose-400 text-xs font-semibold rounded-xl transition">
+                        Очистить всё
+                    </button>
+                </div>
+
+                <div id="manage-lessons-list" class="flex-1 overflow-y-auto space-y-2 pr-1"></div>
+            </div>
+        </div>
+
+        <!-- Модалка: Настройки (Тема, дата начала) -->
+        <div id="settings-modal"
+            class="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div
+                class="bg-white dark:bg-slate-900 w-full max-w-md rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl transition-colors">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-base font-bold text-slate-800 dark:text-white">Настройки</h3>
+                    <button onclick="closeSettingsModal()"
+                        class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Тема -->
+                    <div
+                        class="flex items-center justify-between bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <div class="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                            <svg class="w-5 h-5 text-slate-500 dark:text-slate-400" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                            </svg>
+                            Тёмная тема
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="theme-toggle" class="sr-only peer" onchange="toggleTheme()">
+                            <div
+                                class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600">
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- Дата старта семестра -->
+                    <div
+                        class="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">Дата начала
+                            семестра (1-я неделя)</label>
+                        <p class="text-[10px] text-slate-500 dark:text-slate-400 mb-2 leading-tight">От этой даты будет
+                            начинаться отсчет первой недели.</p>
+                        <input type="date" id="settings-start-date" onchange="saveSettings()"
+                            class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+
+                    <!-- Поделиться / Экспорт -->
+                    <button onclick="closeSettingsModal(); openShareModal();"
+                        class="w-full flex items-center justify-between bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/80 p-3 rounded-xl border border-slate-200 dark:border-slate-700 transition">
+                        <div class="flex items-center gap-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                            <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                            </svg>
+                            Поделиться расписанием
+                        </div>
+                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Подпись автора -->
+                <div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 text-center">
+                    <p class="text-[11px] text-slate-400 dark:text-slate-500 font-medium">Сделано для студентов</p>
+                    <a href="https://t.me/alril00" target="_blank"
+                        class="text-[11px] text-blue-500 hover:text-blue-600 dark:text-blue-400 font-semibold mt-1 inline-block transition">
+                        Нашли баг или есть идея? Напишите автору.
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модалка: Поделиться -->
+        <div id="share-modal"
+            class="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div
+                class="bg-white dark:bg-slate-900 w-full max-w-md rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl transition-colors">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-base font-bold text-slate-800 dark:text-white">Поделиться расписанием</h3>
+                    <button onclick="closeShareModal()"
+                        class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <p class="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+                    Отправьте ссылку одногруппникам: при переходе по ней, ваше расписание автоматически загрузится у
+                    них.
+                </p>
+
+                <div class="space-y-3">
+                    <button onclick="copyShareLink()"
+                        class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                        Скопировать ссылку на расписание
+                    </button>
+
+                    <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Импорт
+                            расписания</label>
+                        <div class="flex gap-1.5">
+                            <input type="text" id="import-json-input" placeholder="Вставьте JSON-код сюда..."
+                                class="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white text-xs px-3 py-2 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500">
+                            <button onclick="importFromJsonInput()"
+                                class="px-3 py-2 bg-slate-800 dark:bg-slate-700 text-white rounded-xl text-xs font-semibold hover:bg-black dark:hover:bg-slate-600 transition">
+                                Загрузить
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="share-toast"
+                    class="hidden mt-3 text-center text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 py-2 rounded-lg border border-emerald-200 dark:border-emerald-800/50">
+                    Успешно скопировано в буфер!
+                </div>
+            </div>
+        </div>
+
+        <!-- Модалка: Заметка / ДЗ к паре -->
+        <div id="note-modal"
+            class="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div
+                class="bg-white dark:bg-slate-900 w-full max-w-md rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl transition-colors">
+                <div class="flex justify-between items-start gap-2 mb-3">
+                    <div>
+                        <h3 id="note-modal-subject"
+                            class="text-base font-bold text-slate-800 dark:text-white leading-snug">Предмет</h3>
+                        <p id="note-modal-date" class="text-xs text-blue-600 dark:text-blue-400 font-medium mt-0.5">Дата
+                        </p>
+                    </div>
+                    <button onclick="closeNoteModal()"
+                        class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <form onsubmit="saveLessonNote(event)" class="space-y-3">
+                    <input type="hidden" id="note-lesson-id">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                            Заметка на пару
+                        </label>
+                        <textarea id="note-textarea" rows="3"
+                            class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button type="button" id="btn-delete-note" onclick="deleteLessonNote()"
+                            class="hidden px-4 py-2.5 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-xl text-xs font-semibold transition">
+                            Очистить
+                        </button>
+                        <button type="submit"
+                            class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 transition">
+                            Сохранить
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js')
+                .catch((err) => console.log('SW error:', err));
+        }
+    </script>
+</body>
+
+</html>
