@@ -2,6 +2,7 @@
 // 1. ДАННЫЕ, ПРОФИЛИ И НАСТРОЙКИ
 // ==========================================
 let profiles = []; // [{ id, name, schedule: [], startDate: 'YYYY-MM-DD' }]
+const APP_VERSION = "1.5";
 let activeProfileId = null;
 let schedule = []; // Ссылка на массив пар активного профиля
 let skippedLessons = []; // Формат: ["YYYY-MM-DD_lessonId"]
@@ -268,6 +269,7 @@ function initApp() {
     renderAll();
     initCalendarSwipe();
     initWidgetModeIfNeeded();
+    checkAppUpdates();
 }
 
 function loadSettings() {
@@ -355,15 +357,9 @@ function loadSchedule() {
         let parsedData = null;
 
         try {
-            const decoded = atou(decodeURIComponent(rawData));
-            const json = JSON.parse(decoded);
-            parsedData = Array.isArray(json) && Array.isArray(json[0]) ? decompressSchedule(json) : json;
-        } catch (e1) {
-            try {
-                parsedData = JSON.parse(decodeURIComponent(rawData));
-            } catch (e2) {
-                console.error("Ошибка импорта расписания:", e1, e2);
-            }
+            parsedData = parseSharePayload(rawData);
+        } catch (e) {
+            console.error("Ошибка импорта расписания:", e);
         }
 
         window.history.replaceState(null, null, window.location.pathname + window.location.search);
@@ -396,6 +392,7 @@ function loadSchedule() {
             alert("Ошибка: не удалось распознать расписание из ссылки.");
         }
     }
+
 
     saveProfiles();
     renderProfileUI();
@@ -700,7 +697,7 @@ function renderSelectedDay() {
                         ${l.room ? `<span class="text-amber-700 dark:text-amber-500 font-medium">• ${l.room}</span>` : ''}
                         ${l.teacher ? `<span>• ${l.teacher}</span>` : ''}
                     </div>
-                    <span title="${noteText ? 'Редактировать заметку' : 'Добавить заметку или ДЗ'}"
+                    <span title="${noteText ? 'Редактировать заметку' : 'Добавить заметку'}"
                         class="shrink-0 p-1 rounded-lg transition-colors ${noteText
                     ? 'text-blue-500 dark:text-blue-400 bg-blue-500/10'
                     : 'text-slate-400/70 dark:text-slate-500 md:group-hover:text-blue-500 md:dark:group-hover:text-blue-400 md:group-hover:bg-blue-500/10'}">
@@ -716,16 +713,16 @@ function renderSelectedDay() {
                 ` : ''}
             `;
 
-            // Логика свайпа со "стоп-краном"
+            // Логика свайпа: "стоп-кран" + полный свайп для удаления
             let startX = 0;
             let startY = 0;
             let currentX = 0;
             let baseOffset = 0;
             let isSwiping = false;
-            const STOP_OFFSET = -115; // Ширина фиксации кнопки "Отменить"
+            const STOP_OFFSET = -115; // Позиция стоп-крана
+            const FULL_SWIPE_THRESHOLD = -180; // Порог полного удаления
 
             card.addEventListener('touchstart', (e) => {
-                // Закрываем другую открытую карточку, если коснулись новой
                 if (openedSwipeCard && openedSwipeCard.card !== card) {
                     closeOpenedSwipeCard();
                 }
@@ -748,21 +745,36 @@ function renderSelectedDay() {
                 }
 
                 if (isSwiping) {
-                    // Ограничиваем сдвиг от 0 до -135px
-                    currentX = Math.min(0, Math.max(baseOffset + dx, -135));
+                    const maxPull = -wrapper.offsetWidth;
+                    currentX = Math.min(0, Math.max(baseOffset + dx, maxPull));
                     card.style.transform = `translateX(${currentX}px)`;
+
                     if (currentX < -10) {
                         wrapper.classList.add('swiping');
+                    }
+
+                    // Визуальный сигнал при пересечении порога полного удаления
+                    const wasFull = wrapper.classList.contains('full-swipe');
+                    const isFull = currentX < FULL_SWIPE_THRESHOLD;
+                    if (isFull !== wasFull) {
+                        wrapper.classList.toggle('full-swipe', isFull);
+                        if (isFull && navigator.vibrate) navigator.vibrate(12);
                     }
                 }
             }, { passive: true });
 
             card.addEventListener('touchend', () => {
                 card.classList.remove('dragging');
+                wrapper.classList.remove('full-swipe');
                 if (!isSwiping) return;
 
-                if (currentX < -55) {
-                    // Фиксируем карточку на стоп-кране (-115px)
+                if (currentX < FULL_SWIPE_THRESHOLD) {
+                    // Полный свайп влево -> уводим за экран и удаляем пару
+                    card.style.transform = `translateX(-100%)`;
+                    openedSwipeCard = null;
+                    setTimeout(() => skipLessonForDate(selectedCalendarDate, l.id), 180);
+                } else if (currentX < -55) {
+                    // Короткий свайп -> фиксируем на стоп-кране (-115px)
                     card.style.transform = `translateX(${STOP_OFFSET}px)`;
                     wrapper.classList.add('swiping');
                     openedSwipeCard = { card, wrapper };
@@ -974,6 +986,33 @@ function clearAllSchedule() {
 function openSettingsModal() { document.getElementById('settings-modal').classList.remove('hidden'); }
 function closeSettingsModal() { document.getElementById('settings-modal').classList.add('hidden'); }
 
+function checkAppUpdates() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('widget') === '1') return;
+
+    const seenVersion = localStorage.getItem("study_calendar_version");
+    const hasExistingData = localStorage.getItem("study_calendar_profiles_v1") || localStorage.getItem("study_calendar_schedule_v2");
+
+    if (!seenVersion) {
+        if (!hasExistingData) {
+            localStorage.setItem("study_calendar_version", APP_VERSION);
+            return;
+        }
+        openUpdatesModal();
+    } else if (seenVersion !== APP_VERSION) {
+        openUpdatesModal();
+    }
+}
+
+function openUpdatesModal() {
+    document.getElementById('updates-modal').classList.remove('hidden');
+}
+
+function closeUpdatesModal() {
+    localStorage.setItem("study_calendar_version", APP_VERSION);
+    document.getElementById('updates-modal').classList.add('hidden');
+}
+
 function openShareModal() {
     document.getElementById('share-modal').classList.remove('hidden');
     document.getElementById('share-toast').classList.add('hidden');
@@ -1021,52 +1060,131 @@ function atou(b64) {
 }
 
 // Сжатие расписания: используем точные названия полей timeStart и subject
-function compressSchedule(list) {
-    return list.map(item => [
-        item.id || ('id_' + Date.now()),
+// Сверхкомпактная упаковка: выносим повторяющиеся строки в словарь и убираем лишний синтаксис JSON
+function packScheduleCompact(list) {
+    const dict = [];
+    const getIdx = (val) => {
+        const s = (val || "").trim();
+        if (!s) return "";
+        let idx = dict.indexOf(s);
+        if (idx === -1) {
+            idx = dict.length;
+            dict.push(s);
+        }
+        return idx.toString(36); // 0-9, a-z
+    };
+
+    const rows = list.map(item => [
         item.day,
-        item.timeStart,
-        item.timeEnd,
-        item.subject,
-        item.type || "",
-        item.room || "",
-        item.teacher || "",
-        item.weeks || "все"
-    ]);
+        item.timeStart.replace(':', ''),
+        item.timeEnd.replace(':', ''),
+        getIdx(item.subject),
+        getIdx(item.type),
+        getIdx(item.room),
+        getIdx(item.teacher),
+        (!item.weeks || item.weeks === "все") ? "" : item.weeks
+    ].join('~'));
+
+    return dict.join('|') + '\n' + rows.join(';');
 }
 
-// Распаковка сжатого массива обратно в исходный формат
+function unpackScheduleCompact(str) {
+    const nl = str.indexOf('\n');
+    if (nl === -1) return [];
+    const dictRaw = str.slice(0, nl);
+    const rowsRaw = str.slice(nl + 1);
+    if (!rowsRaw) return [];
+
+    const dict = dictRaw ? dictRaw.split('|') : [];
+    const fromIdx = (code) => code === "" ? "" : (dict[parseInt(code, 36)] || "");
+    const fmtTime = (t) => t.length === 4 ? `${t.slice(0, 2)}:${t.slice(2)}` : t;
+
+    return rowsRaw.split(';').map((row, idx) => {
+        const p = row.split('~');
+        return {
+            id: 'id_' + Date.now() + '_' + idx,
+            day: parseInt(p[0], 10),
+            timeStart: fmtTime(p[1] || ""),
+            timeEnd: fmtTime(p[2] || ""),
+            subject: fromIdx(p[3]),
+            type: fromIdx(p[4]),
+            room: fromIdx(p[5]),
+            teacher: fromIdx(p[6]),
+            weeks: p[7] || "все"
+        };
+    });
+}
+
 function decompressSchedule(arr) {
-    return arr.map(item => ({
-        id: item[0],
-        day: item[1],
-        timeStart: item[2],
-        timeEnd: item[3],
-        subject: item[4],
-        type: item[5],
-        room: item[6],
-        teacher: item[7],
-        weeks: item[8]
-    }));
+    return arr.map((item, idx) => {
+        const hasId = item.length >= 9;
+        const offset = hasId ? 1 : 0;
+        return {
+            id: hasId ? item[0] : ('id_' + Date.now() + '_' + idx),
+            day: item[offset],
+            timeStart: item[offset + 1],
+            timeEnd: item[offset + 2],
+            subject: item[offset + 3],
+            type: item[offset + 4] || "",
+            room: item[offset + 5] || "",
+            teacher: item[offset + 6] || "",
+            weeks: item[offset + 7] || "все"
+        };
+    });
 }
-function generateShareUrl() {
-    try {
-        // 1. Сжимаем массив объектов в компактный список
-        const compressed = compressSchedule(schedule);
-        // 2. Преобразуем в короткий Base64
-        const packed = utoa(JSON.stringify(compressed));
 
-        const baseUrl = window.location.origin + window.location.pathname;
-        return `${baseUrl}#data=${encodeURIComponent(packed)}`;
+function generateShareUrl() {
+    const baseUrl = window.location.origin + window.location.pathname;
+    try {
+        const compactStr = packScheduleCompact(schedule);
+        if (window.LZString) {
+            const lz = LZString.compressToEncodedURIComponent(compactStr);
+            return `${baseUrl}#data=c:${lz}`;
+        }
+        return `${baseUrl}#data=c0:${encodeURIComponent(utoa(compactStr))}`;
     } catch (e) {
         console.error("Ошибка при генерации ссылки:", e);
-        // Запасной вариант без сжатия
-        return `${window.location.origin}${window.location.pathname}#data=${encodeURIComponent(JSON.stringify(schedule))}`;
+        return `${baseUrl}#data=${encodeURIComponent(JSON.stringify(schedule))}`;
     }
 }
-function copyShareLink() {
-    const url = generateShareUrl();
-    copyTextToClipboard(url);
+
+function parseSharePayload(raw) {
+    let clean = raw.trim();
+    if (clean.includes('#data=')) {
+        clean = clean.split('#data=')[1];
+    }
+
+    // 1. Новый сверхкомпактный формат с LZ-сжатием (c:...)
+    if (clean.startsWith('c:') && window.LZString) {
+        const decompressed = LZString.decompressFromEncodedURIComponent(clean.slice(2));
+        if (decompressed) return unpackScheduleCompact(decompressed);
+    }
+
+    // 2. Новый сверхкомпактный формат без LZ (c0:...)
+    if (clean.startsWith('c0:')) {
+        const decoded = atou(decodeURIComponent(clean.slice(3)));
+        return unpackScheduleCompact(decoded);
+    }
+
+    // 3. Промежуточный LZ формат (z:...)
+    if (clean.startsWith('z:') && window.LZString) {
+        const decompressed = LZString.decompressFromEncodedURIComponent(clean.slice(2));
+        if (decompressed) {
+            const json = JSON.parse(decompressed);
+            return Array.isArray(json) && Array.isArray(json[0]) ? decompressSchedule(json) : json;
+        }
+    }
+
+    // 4. Старый Base64 формат
+    try {
+        const decoded = atou(decodeURIComponent(clean));
+        const json = JSON.parse(decoded);
+        return Array.isArray(json) && Array.isArray(json[0]) ? decompressSchedule(json) : json;
+    } catch (e1) {
+        // 5. Обычный JSON
+        const json = JSON.parse(clean);
+        return Array.isArray(json) && Array.isArray(json[0]) ? decompressSchedule(json) : json;
+    }
 }
 
 function importFromJsonInput() {
@@ -1074,31 +1192,12 @@ function importFromJsonInput() {
     if (!raw) return;
 
     let parsed = null;
-
-    // 1. Проверяем, если вставили ссылку целиком (http...#data=...)
-    let cleanText = raw;
-    if (cleanText.includes('#data=')) {
-        cleanText = cleanText.split('#data=')[1];
-    }
-
-    // 2. Пробуем декодировать сжатый Base64
     try {
-        const decoded = atou(decodeURIComponent(cleanText));
-        const json = JSON.parse(decoded);
-        parsed = Array.isArray(json) && Array.isArray(json[0]) ? decompressSchedule(json) : json;
-    } catch (e1) {
-        // 3. Если не Base64, пробуем прочитать как обычный JSON
-        try {
-            parsed = JSON.parse(cleanText);
-            if (Array.isArray(parsed) && Array.isArray(parsed[0])) {
-                parsed = decompressSchedule(parsed);
-            }
-        } catch (e2) {
-            console.error("Ошибка парсинга:", e1, e2);
-        }
+        parsed = parseSharePayload(raw);
+    } catch (e) {
+        console.error("Ошибка парсинга:", e);
     }
 
-    // 4. Валидация и сохранение
     if (Array.isArray(parsed)) {
         if (schedule.length > 0) {
             const replace = confirm(
@@ -1110,7 +1209,6 @@ function importFromJsonInput() {
             if (replace) {
                 schedule = parsed;
             } else {
-                // Генерируем свежие ID при добавлении поверх, чтобы не было конфликтов
                 const withNewIds = parsed.map((item, idx) => ({
                     ...item,
                     id: 'id_' + Date.now() + '_' + idx
@@ -1130,6 +1228,18 @@ function importFromJsonInput() {
         alert("Ошибка формата: проверьте вставленный код или ссылку.");
     }
 }
+
+
+function copyShareLink() {
+    const url = generateShareUrl();
+    copyTextToClipboard(url);
+}
+function copyBackupLinkFromSettings() {
+    const url = generateShareUrl();
+    copyTextToClipboard(url);
+    showNotification("Ссылка скопирована! Сохраните её");
+}
+
 
 function showToast() { document.getElementById('share-toast').classList.remove('hidden'); }
 

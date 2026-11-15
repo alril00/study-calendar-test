@@ -206,3 +206,7 @@ input[type="date"]::-webkit-date-and-time-value {
     pointer-events: auto;
     cursor: pointer;
 }
+
+.lesson-swipe-wrapper.full-swipe .lesson-swipe-bg {
+    background-color: #dc2626;
+}
